@@ -6,12 +6,10 @@
 
 
 use std::fmt;
-use std::num::FromPrimitive;
-
-use super::libc::consts::os::posix88;
 
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
+#[repr(C)]
 pub enum CtlOp {
     /// Register the target file descriptor fd on the epoll instance
     /// referred to by the file descriptor epfd and associate the
@@ -24,35 +22,36 @@ pub enum CtlOp {
     DEL = 3
 }
 
-#[derive(FromPrimitive)]
+#[derive(Copy, Clone)]
+#[repr(C)]
 pub enum EventType {
     /// The associated file is available for read(2) operations.
-    EPOLLIN = 0x001,
+    EPOLLIN         = 0x001,
     /// The associated file is available for write(2) operations.
-    EPOLLOUT = 0x004,
+    EPOLLOUT        = 0x004,
     /// Stream socket peer closed connection, or shut down writing
     /// half of connection.
-    EPOLLRDHUP = 0x2000,
+    EPOLLRDHUP      = 0x2000,
     /// There is urgent data available for read(2) operations.
-    EPOLLPRI = 0x002,
+    EPOLLPRI        = 0x002,
     /// Error condition happened on the associated file descriptor.
     /// epoll_wait(2) will always wait for this event; it is not
     /// necessary to set it in events.
-    EPOLLERR = 0x008,
+    EPOLLERR        = 0x008,
     /// Hang up happened on the associated file descriptor. epoll_wait(2)
     /// will always wait for this event; it is not necessary to set it
     /// in events.
-    EPOLLHUP = 0x010,
+    EPOLLHUP        = 0x010,
     /// Sets the Edge Triggered behavior for the associated file descriptor.
     /// The default behavior for epoll is Level Triggered.
-    EPOLLET = (1 << 31),
+    EPOLLET         = (1 << 31),
     /// Sets the one-shot behavior for the associated file descriptor.
     /// This means that after an event is pulled out with epoll_wait(2)
     /// the associated file descriptor is internally disabled and no other
     /// events will be reported by the epoll interface. The user must call
     /// epoll_ctl() with EPOLL_CTL_MOD to rearm the file descriptor with a
     /// new event mask.
-    EPOLLONESHOT = (1 << 30)
+    EPOLLONESHOT    = (1 << 30)
 }
 
 #[derive(Debug, Clone)]

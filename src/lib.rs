@@ -8,15 +8,15 @@
 extern crate libc;
 extern crate errno;
 
+
+use std::result::Result;
 use std::os::unix::io::RawFd;
 
-use self::errno::errno;
-use self::libc::consts::os::posix88;
-use self::libc::{size_t, c_void, c_int, ssize_t};
+use errno::errno;
+use libc::c_int;
+use libc::consts::os::posix88;
 
-use util::{CreateError, CtrlError, WaitError, CtlOp};
-
-
+use util::*;
 mod util;
 
 
@@ -24,10 +24,10 @@ mod util;
 pub type CreateResult = Result<RawFd, CreateError>;
 
 /// Represents the result of calling epoll_ctrl
-pub type CtlResult = Result<RawFd, CtlError>;
+pub type CtlResult = Result<(), CtlError>;
 
 /// Represents the result of calling epoll_wait
-pub type WaitResult = Result<RawFd, WaitError>;
+pub type WaitResult = Result<u32, WaitError>;
 
 
 #[cfg(target_arch = "x86_64")]
@@ -53,27 +53,78 @@ extern "C" {
 }
 
 /// Attempts to create a new epoll instance
+#[inline]
 pub fn create1(flags: u32) -> CreateResult {
     let mut epoll_fd;
     unsafe {
-        epoll_fd = epoll::create1(flags as c_int);
+        epoll_fd = epoll_create1(flags as c_int);
     }
 
     if epoll_fd == -1 {
         let errno = errno().0 as i32;
         return match errno {
-            posix88::EINVAL     => Err(SetFdError::EINVAL),
-            posix88::EMFILE     => Err(SetFdError::EMFILE),
-            posix88::ENFILE     => Err(SetFdError::ENFILE),
-            posix88::ENOMEM     => Err(SetFdError::ENOMEM),
+            posix88::EINVAL     => Err(CreateError::EINVAL),
+            posix88::EMFILE     => Err(CreateError::EMFILE),
+            posix88::ENFILE     => Err(CreateError::ENFILE),
+            posix88::ENOMEM     => Err(CreateError::ENOMEM),
             _ => panic!("Unexpected errno: {}", errno)
+        }
     }
 
     Ok(epoll_fd)
 }
 
-/// asdf
+/// Calls epoll_ctl(2) with supplied params
+#[inline]
 pub fn ctl(epoll_fd: RawFd, op: CtlOp,
            socket_fd: RawFd, event: Box<EpollEvent>) -> CtlResult {
+    let mut x;
+    unsafe {
+        x = epoll_ctl(epoll_fd as c_int,
+            op as c_int,
+            socket_fd as c_int,
+            &*event);
+    }
 
+    if x == -1 {
+        let errno = errno().0 as i32;
+        return match errno {
+            posix88::EBADF      => Err(CtlError::EBADF),
+            posix88::EEXIST     => Err(CtlError::EEXIST),
+            posix88::EINVAL     => Err(CtlError::EINVAL),
+            posix88::ENOENT     => Err(CtlError::ENOENT),
+            posix88::ENOSPC     => Err(CtlError::ENOSPC),
+            posix88::EPERM      => Err(CtlError::EPERM),
+            _ => panic!("Unexpected errno: {}", errno)
+        }
+    }
+
+    Ok(())
+}
+
+/// asdf
+#[inline]
+pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
+    timeout: u32) -> WaitResult {
+
+    let mut num_fds_ready;
+    unsafe {
+        num_fds_ready = epoll_wait(epoll_fd as c_int,
+            events.as_mut_ptr(),
+            events.len() as c_int,
+            timeout as c_int);
+    }
+
+    if num_fds_ready == -1 {
+        let errno = errno().0 as i32;
+        return match errno {
+            posix88::EBADF  => Err(WaitError::EBADF),
+            posix88::EFAULT => Err(WaitError::EFAULT),
+            posix88::EINTR  => Err(WaitError::EINTR),
+            posix88::EINVAL => Err(WaitError::EINVAL),
+            _ => panic!("Unexpected errno: {}", errno)
+        }
+    }
+
+    Ok(num_fds_ready as u32)
 }
