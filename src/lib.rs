@@ -102,7 +102,7 @@ pub fn ctl(epoll_fd: RawFd, op: CtlOp,
     Ok(())
 }
 
-/// asdf
+/// Calls epoll_wait(1) with supplied params
 #[inline]
 pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
     timeout: u32) -> WaitResult {
