@@ -40,15 +40,15 @@ pub type WaitResult = Result<u32, WaitError>;
 #[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
 pub struct EpollEvent {
-    events: u32,
-    data: u64
+    pub events: u32,
+    pub data: u64
 }
 
 #[cfg(not(target_arch = "x86_64"))]
 #[repr(C)]
 pub struct EpollEvent {
-    events: u32,
-    data: u64
+    pub events: u32,
+    pub data: u64
 }
 
 extern "C" {
