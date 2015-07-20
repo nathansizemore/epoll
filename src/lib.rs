@@ -112,7 +112,7 @@ pub fn ctl(epoll_fd: RawFd, op: u32,
 /// Calls epoll_wait(1) with supplied params
 #[inline]
 pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
-    timeout: u32) -> WaitResult {
+    timeout: i32) -> WaitResult {
 
     let mut num_fds_ready;
     unsafe {

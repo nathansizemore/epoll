@@ -1,6 +1,6 @@
 [package]
 name = "epoll"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["Nathan Sizemore <nathanrsizemore@gmail.com>"]
 description = "Linux epoll wrapper"
 repository = "https://github.com/nathansizemore/epoll"
