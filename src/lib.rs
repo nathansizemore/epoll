@@ -114,6 +114,8 @@ pub fn ctl(epoll_fd: RawFd, op: CtlOp,
 pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
     timeout: u32) -> WaitResult {
 
+    println!("events.len(): {}", events.len());
+
     let mut num_fds_ready;
     unsafe {
         num_fds_ready = epoll_wait(epoll_fd as c_int,
