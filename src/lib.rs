@@ -24,7 +24,7 @@ use libc::c_int;
 use libc::consts::os::posix88;
 
 use util::*;
-mod util;
+pub mod util;
 
 
 /// Represents the result of calling epoll_create1
@@ -40,15 +40,15 @@ pub type WaitResult = Result<u32, WaitError>;
 #[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
 pub struct EpollEvent {
-    events: u32,
-    data: u64
+    pub events: u32,
+    pub data: u64
 }
 
 #[cfg(not(target_arch = "x86_64"))]
 #[repr(C)]
 pub struct EpollEvent {
-    events: u32,
-    data: u64
+    pub events: u32,
+    pub data: u64
 }
 
 extern "C" {
@@ -83,7 +83,7 @@ pub fn create1(flags: u32) -> CreateResult {
 
 /// Calls epoll_ctl(2) with supplied params
 #[inline]
-pub fn ctl(epoll_fd: RawFd, op: CtlOp,
+pub fn ctl(epoll_fd: RawFd, op: u32,
            socket_fd: RawFd, event: Box<EpollEvent>) -> CtlResult {
     let mut x;
     unsafe {
@@ -112,7 +112,7 @@ pub fn ctl(epoll_fd: RawFd, op: CtlOp,
 /// Calls epoll_wait(1) with supplied params
 #[inline]
 pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
-    timeout: u32) -> WaitResult {
+    timeout: i32) -> WaitResult {
 
     println!("events.len(): {}", events.len());
 

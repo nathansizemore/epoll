@@ -15,50 +15,46 @@
 use std::fmt;
 
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub enum CtlOp {
+pub mod ctl_op {
     /// Register the target file descriptor fd on the epoll instance
     /// referred to by the file descriptor epfd and associate the
     /// event with the internal file linked to fd.
-    ADD = 1,
+    pub const ADD: u32 = 1;
     /// Change the event event associated with the target file descriptor fd.
-    MOD = 2,
+    pub const MOD: u32 = 2;
     /// Remove (deregister) the target file descriptor fd from the epoll
-    /// instance referred to by epfd. The event is ignored and can be NULL
-    DEL = 3
+    /// instance referred to by epfd. The event is ignored and can be NULL.
+    pub const DEL: u32 = 3;
 }
 
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub enum EventType {
+pub mod event_type {
     /// The associated file is available for read(2) operations.
-    EPOLLIN         = 0x001,
+    pub const EPOLLIN:          u32 = 0x001;
     /// The associated file is available for write(2) operations.
-    EPOLLOUT        = 0x004,
+    pub const EPOLLOUT:         u32 = 0x004;
     /// Stream socket peer closed connection, or shut down writing
     /// half of connection.
-    EPOLLRDHUP      = 0x2000,
+    pub const EPOLLRDHUP:       u32 = 0x2000;
     /// There is urgent data available for read(2) operations.
-    EPOLLPRI        = 0x002,
+    pub const EPOLLPRI:         u32 = 0x002;
     /// Error condition happened on the associated file descriptor.
     /// epoll_wait(2) will always wait for this event; it is not
     /// necessary to set it in events.
-    EPOLLERR        = 0x008,
+    pub const EPOLLERR:         u32 = 0x008;
     /// Hang up happened on the associated file descriptor. epoll_wait(2)
     /// will always wait for this event; it is not necessary to set it
     /// in events.
-    EPOLLHUP        = 0x010,
+    pub const EPOLLHUP:         u32 = 0x010;
     /// Sets the Edge Triggered behavior for the associated file descriptor.
     /// The default behavior for epoll is Level Triggered.
-    EPOLLET         = (1 << 31),
+    pub const EPOLLET:          u32 = (1 << 31);
     /// Sets the one-shot behavior for the associated file descriptor.
     /// This means that after an event is pulled out with epoll_wait(2)
     /// the associated file descriptor is internally disabled and no other
     /// events will be reported by the epoll interface. The user must call
     /// epoll_ctl() with EPOLL_CTL_MOD to rearm the file descriptor with a
     /// new event mask.
-    EPOLLONESHOT    = (1 << 30)
+    pub const EPOLLONESHOT:     u32 = (1 << 30);
 }
 
 #[derive(Debug, Clone)]
