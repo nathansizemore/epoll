@@ -19,11 +19,11 @@ fn start_event_loop() {
 
     // Add fd to epoll watch list
     let some_fd = 0 as RawFd;
-    let event = Box::new(EpollEvent {
+    let mut event = EpollEvent {
         data: some_fd as u64,
         events: (event_type::EPOLLIN | event_type::EPOLLET | event_type::EPOLLRDHUP)
-    });
-    match epoll::ctl(epfd, ctl_op::ADD, some_fd, event) {
+    };
+    match epoll::ctl(epfd, ctl_op::ADD, some_fd, &mut event) {
         Ok(()) => println!("Fd added sucessfully"),
         Err(e) => println!("Epoll CtlError during add: {}", e)
     };
