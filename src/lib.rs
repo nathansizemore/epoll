@@ -50,7 +50,7 @@ pub struct EpollEvent {
 extern "C" {
     fn epoll_create1(flags: c_int) -> c_int;
     fn epoll_ctl(epfd: c_int, op: c_int, fd: c_int,
-        event: *const EpollEvent) -> c_int;
+        event: *mut EpollEvent) -> c_int;
     fn epoll_wait(epfd: c_int, event: *mut EpollEvent,
         maxevents: c_int, timeout: c_int) -> c_int;
 }
@@ -80,13 +80,13 @@ pub fn create1(flags: u32) -> CreateResult {
 /// Calls epoll_ctl(2) with supplied params
 #[inline]
 pub fn ctl(epoll_fd: RawFd, op: u32,
-           socket_fd: RawFd, event: Box<EpollEvent>) -> CtlResult {
+           socket_fd: RawFd, event: &mut EpollEvent) -> CtlResult {
     let mut x;
     unsafe {
         x = epoll_ctl(epoll_fd as c_int,
             op as c_int,
             socket_fd as c_int,
-            &*event);
+            event as *mut EpollEvent);
     }
 
     if x == -1 {
