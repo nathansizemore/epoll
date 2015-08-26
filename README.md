@@ -1,4 +1,6 @@
 # epoll
+[<img src="https://travis-ci.org/nathansizemore/epoll.png?branch=master">](https://travis-ci.org/nathansizemore/epoll)
+
 Rust epoll wrapper
 
 [Documentation](http://nathansizemore.github.io/epoll/epoll/index.html)
