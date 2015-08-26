@@ -1,7 +1,6 @@
-# epoll
-[<img src="https://travis-ci.org/nathansizemore/epoll.png?branch=master">](https://travis-ci.org/nathansizemore/epoll)
+# epoll [<img src="https://travis-ci.org/nathansizemore/epoll.png?branch=master">](https://travis-ci.org/nathansizemore/epoll)
 
-Rust epoll wrapper
+Rust wrapper for Linux kernel's [epoll](http://man7.org/linux/man-pages/man7/epoll.7.html)
 
 [Documentation](http://nathansizemore.github.io/epoll/epoll/index.html)
 
