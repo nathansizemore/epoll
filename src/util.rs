@@ -8,7 +8,8 @@
 // http://mozilla.org/MPL/2.0/.
 
 
-use std::fmt;
+//use std;
+use std::{fmt, error};
 
 
 pub mod ctl_op {
@@ -103,6 +104,40 @@ pub enum WaitError {
     EINVAL
 }
 
+impl error::Error for CreateError {
+    fn description(&self) -> &str {
+        match *self {
+            CreateError::EINVAL => "Invalid flags",
+            CreateError::EMFILE => "/proc/sys/fs/epoll/max_user_instances limit reached",
+            CreateError::ENFILE => "NOFILE limit has been reached",
+            CreateError::ENOMEM => "Insufficient memory"
+        }
+    }
+}
+
+impl error::Error for CtlError {
+    fn description(&self) -> &str {
+        match *self {
+            CtlError::EBADF => "Invalid file descriptor",
+            CtlError::EEXIST => "File descriptor already registered",
+            CtlError::EINVAL => "epoll_fd is not an epoll file descriptor",
+            CtlError::ENOENT => "File descriptor not registered",
+            CtlError::ENOSPC => "Insufficient memory",
+            CtlError::EPERM => "/proc/sys/fs/epoll/max_user_watches limit reached"
+        }
+    }
+}
+
+impl error::Error for WaitError {
+    fn description(&self) -> &str {
+        match *self {
+            WaitError::EBADF => "Invalid file descriptor",
+            WaitError::EFAULT => "Memory pointed to by events is not accessible with write permissions",
+            WaitError::EINTR => "Interrupted by a signal before any requested events occurred or timeout expired",
+            WaitError::EINVAL => "epoll_fd not an epoll file descriptor, or maxevents is less than or equal to zero."
+        }
+    }
+}
 
 impl fmt::Display for CreateError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

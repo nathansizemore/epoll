@@ -58,7 +58,7 @@ extern "C" {
 /// Attempts to create a new epoll instance
 #[inline]
 pub fn create1(flags: u32) -> CreateResult {
-    let mut epoll_fd;
+    let epoll_fd;
     unsafe {
         epoll_fd = epoll_create1(flags as c_int);
     }
@@ -81,7 +81,7 @@ pub fn create1(flags: u32) -> CreateResult {
 #[inline]
 pub fn ctl(epoll_fd: RawFd, op: u32,
            socket_fd: RawFd, event: &mut EpollEvent) -> CtlResult {
-    let mut x;
+    let x;
     unsafe {
         x = epoll_ctl(epoll_fd as c_int,
             op as c_int,
@@ -110,7 +110,7 @@ pub fn ctl(epoll_fd: RawFd, op: u32,
 pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
     timeout: i32) -> WaitResult {
 
-    let mut num_fds_ready;
+    let num_fds_ready;
     unsafe {
         num_fds_ready = epoll_wait(epoll_fd as c_int,
             events.as_mut_ptr(),
