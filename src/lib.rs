@@ -35,6 +35,7 @@ pub type WaitResult = Result<u32, WaitError>;
 
 #[cfg(target_arch = "x86_64")]
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 pub struct EpollEvent {
     pub events: u32,
     pub data: u64
@@ -42,6 +43,7 @@ pub struct EpollEvent {
 
 #[cfg(not(target_arch = "x86_64"))]
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct EpollEvent {
     pub events: u32,
     pub data: u64
@@ -49,10 +51,8 @@ pub struct EpollEvent {
 
 extern "C" {
     fn epoll_create1(flags: c_int) -> c_int;
-    fn epoll_ctl(epfd: c_int, op: c_int, fd: c_int,
-        event: *mut EpollEvent) -> c_int;
-    fn epoll_wait(epfd: c_int, event: *mut EpollEvent,
-        maxevents: c_int, timeout: c_int) -> c_int;
+    fn epoll_ctl(epfd: c_int, op: c_int, fd: c_int, event: *mut EpollEvent) -> c_int;
+    fn epoll_wait(epfd: c_int, event: *mut EpollEvent, maxevents: c_int, timeout: c_int) -> c_int;
 }
 
 /// Attempts to create a new epoll instance
