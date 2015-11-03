@@ -17,7 +17,6 @@ use std::os::unix::io::RawFd;
 
 use errno::errno;
 use libc::c_int;
-use libc::consts::os::posix88;
 
 use util::*;
 pub mod util;
@@ -66,10 +65,10 @@ pub fn create1(flags: u32) -> CreateResult {
     if epoll_fd == -1 {
         let errno = errno().0 as i32;
         return match errno {
-            posix88::EINVAL     => Err(CreateError::EINVAL),
-            posix88::EMFILE     => Err(CreateError::EMFILE),
-            posix88::ENFILE     => Err(CreateError::ENFILE),
-            posix88::ENOMEM     => Err(CreateError::ENOMEM),
+            libc::EINVAL     => Err(CreateError::EINVAL),
+            libc::EMFILE     => Err(CreateError::EMFILE),
+            libc::ENFILE     => Err(CreateError::ENFILE),
+            libc::ENOMEM     => Err(CreateError::ENOMEM),
             _ => panic!("Unexpected errno: {}", errno)
         }
     }
@@ -92,12 +91,12 @@ pub fn ctl(epoll_fd: RawFd, op: u32,
     if x == -1 {
         let errno = errno().0 as i32;
         return match errno {
-            posix88::EBADF      => Err(CtlError::EBADF),
-            posix88::EEXIST     => Err(CtlError::EEXIST),
-            posix88::EINVAL     => Err(CtlError::EINVAL),
-            posix88::ENOENT     => Err(CtlError::ENOENT),
-            posix88::ENOSPC     => Err(CtlError::ENOSPC),
-            posix88::EPERM      => Err(CtlError::EPERM),
+            libc::EBADF      => Err(CtlError::EBADF),
+            libc::EEXIST     => Err(CtlError::EEXIST),
+            libc::EINVAL     => Err(CtlError::EINVAL),
+            libc::ENOENT     => Err(CtlError::ENOENT),
+            libc::ENOSPC     => Err(CtlError::ENOSPC),
+            libc::EPERM      => Err(CtlError::EPERM),
             _ => panic!("Unexpected errno: {}", errno)
         }
     }
@@ -121,10 +120,10 @@ pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
     if num_fds_ready == -1 {
         let errno = errno().0 as i32;
         return match errno {
-            posix88::EBADF  => Err(WaitError::EBADF),
-            posix88::EFAULT => Err(WaitError::EFAULT),
-            posix88::EINTR  => Err(WaitError::EINTR),
-            posix88::EINVAL => Err(WaitError::EINVAL),
+            libc::EBADF  => Err(WaitError::EBADF),
+            libc::EFAULT => Err(WaitError::EFAULT),
+            libc::EINTR  => Err(WaitError::EINTR),
+            libc::EINVAL => Err(WaitError::EINVAL),
             _ => panic!("Unexpected errno: {}", errno)
         }
     }
