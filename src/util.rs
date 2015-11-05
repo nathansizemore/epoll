@@ -54,7 +54,7 @@ pub mod event_type {
     pub const EPOLLONESHOT:     u32 = (1 << 30);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CreateError {
     /// Invalid value specified in flags.
     EINVAL,
@@ -67,7 +67,7 @@ pub enum CreateError {
     ENOMEM
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CtlError {
     /// fd is not a valid file descriptor.
     EBADF,
@@ -89,7 +89,7 @@ pub enum CtlError {
     EPERM
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum WaitError {
     /// epfd is not a valid file descriptor.
     EBADF,
