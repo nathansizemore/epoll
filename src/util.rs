@@ -52,6 +52,17 @@ pub mod event_type {
     /// epoll_ctl() with EPOLL_CTL_MOD to rearm the file descriptor with a
     /// new event mask.
     pub const EPOLLONESHOT:     u32 = (1 << 30);
+    /// If EPOLLONESHOT and EPOLLET are clear and the process has the
+    /// CAP_BLOCK_SUSPEND capability, ensure that the system does not
+    /// enter "suspend" or "hibernate" while this event is pending or
+    /// being processed.  The event is considered as being "processed"
+    /// from the time when it is returned by a call to epoll_wait(2)
+    /// until the next call to epoll_wait(2) on the same epoll(7) file
+    /// descriptor, the closure of that file descriptor, the removal
+    /// of the event file descriptor with EPOLL_CTL_DEL, or the
+    /// clearing of EPOLLWAKEUP for the event file descriptor with
+    /// EPOLL_CTL_MOD.
+    pub const EPOLLWAKEUP:      u32 = (1 << 29);
 }
 
 #[derive(Debug, Clone)]
