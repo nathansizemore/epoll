@@ -1,15 +1,14 @@
 [package]
 name = "epoll"
-version = "0.2.5"
+version = "0.3.0"
 authors = ["Nathan Sizemore <nathanrsizemore@gmail.com>"]
 description = "Linux epoll wrapper"
 readme = "README.md"
 keywords = ["epoll"]
 license = "MPL-2.0"
 repository = "https://github.com/nathansizemore/epoll"
-homepage = "https://github.com/nathansizemore/epoll"
 documentation = "http://nathansizemore.github.io/epoll/epoll/index.html"
 
 [dependencies]
-errno = "*"
-libc = "*"
+errno = "^0.1.6"
+libc = "^0.2.9"
