@@ -29,7 +29,7 @@ pub type CreateResult = Result<RawFd, CreateError>;
 pub type CtlResult = Result<(), CtlError>;
 
 /// Represents the result of calling epoll_wait
-pub type WaitResult = Result<u32, WaitError>;
+pub type WaitResult = Result<usize, WaitError>;
 
 
 #[cfg(target_arch = "x86_64")]
@@ -128,5 +128,5 @@ pub fn wait(epoll_fd: RawFd, events: &mut [EpollEvent],
         }
     }
 
-    Ok(num_fds_ready as u32)
+    Ok(num_fds_ready as usize)
 }
