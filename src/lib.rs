@@ -89,7 +89,10 @@ pub struct EpollInstance {
 
 impl EpollInstance {
 
-    /// Creates a new `EpollInstance`
+    /// Creates a new `EpollInstance`.
+    ///
+    /// ## Notes
+    /// * `FD_CLOEXEC` flag is set on the underlying fd returned.
     pub fn new() -> io::Result<EpollInstance> {
         let epfd = unsafe {
             let fd = try!(cvt(libc::epoll_create(1)));
