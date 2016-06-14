@@ -7,39 +7,58 @@
 
 use std::os::unix::io::{RawFd, AsRawFd};
 
-use libc;
-use time::PreciseTime;
-
 
 #[derive(Clone)]
 pub struct Interest {
-    fd: libc::c_int,
-    event_mask: libc::epoll_event,
-    last_event: PreciseTime
+    fd: RawFd,
+    events: ::Events,
+    data: u64
 }
 
 impl Interest {
 
-    pub fn new(fd: libc::c_int, flags: ::Events, data: u64) -> Interest {
+    /// Creates a new Interest.
+    pub fn new(fd: RawFd, flags: ::Events, data: u64) -> Interest {
         Interest {
             fd: fd,
-            event_mask: libc::epoll_event {
-                events: flags.bits() as u32,
-                u64: data
-            },
-            last_event: PreciseTime::now()
+            events: flags,
+            data: data
         }
     }
 
-    pub fn event_mask<'a>(&'a self) -> &'a libc::epoll_event {
-        &self.event_mask
+    /// Copy of `Event` flags associated with this `Interest`.
+    pub fn events(&self) -> ::Events {
+        self.events
     }
 
-    pub fn event_mask_mut<'a>(&'a mut self) -> &'a mut libc::epoll_event {
-        &mut self.event_mask
+    /// Returns a mutable reference to its `Events` flags.
+    pub fn events_mut<'a>(&'a mut self) -> &'a mut ::Events {
+        &mut self.events
+    }
+
+    /// Replaces all associated `Event` flags with `events`.
+    pub fn set_events(&mut self, events: ::Events) {
+        self.events = events;
+    }
+
+    /// Copy of arbitrary data associated with this `Interest`.
+    pub fn data(&self) -> u64 {
+        self.data
+    }
+
+    /// Returns a mutable reference to its arbitrary data.
+    pub fn data_mut<'a>(&'a mut self) -> &'a mut u64 {
+        &mut self.data
+    }
+
+    /// Replaces arbitrary data with `data`.
+    pub fn set_data(&mut self, data: u64) {
+        self.data = data;
     }
 }
 
 impl AsRawFd for Interest {
-    fn as_raw_fd(&self) -> RawFd { self.fd }
+    fn as_raw_fd(&self) -> RawFd {
+        self.fd
+    }
 }
