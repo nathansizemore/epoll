@@ -68,7 +68,7 @@ Nathan Sizemore, nathanrsizemore@gmail.com
 
 ### License
 
-hydrogen is available under the MPL-2.0 license. See the LICENSE file for more info.
+epoll is available under the MPL-2.0 license. See the LICENSE file for more info.
 
 
 
