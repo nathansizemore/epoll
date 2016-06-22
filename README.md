@@ -12,60 +12,53 @@ Safe wrapper around the Linux kernel's [epoll][epoll-man-page] API.
 ``` rust
 extern crate epoll;
 
+use std::sync::{Arc, Mutex};
 use epoll::*;
 
 
-fn main() {
-	// Magic area of new fds to add
-	let regsiter_buf: Vec<Interest>;
+type InterestList = Arc<Mutex<Vec<Interest>>>;
 
-	// Magic area of Interests needing updated event flags and/or data
-	let modify_buf: Vec<Interest>;
 
-	// Magic area of Interests needing removed.
-	let remove_buf: Vec<Interest>;
-
-	// Out super awesome epoll instance.
-	let mut epoll = EpollInstance::new().unwrap();
-
-	loop {
-		event_loop();
-	}
-}
-
-fn event_loop(epoll: &mut EpollInstance,
-	          register: &mut Vec<Interest>,
-			  modify: &mut Vec<Interest>,
-			  remove: &mut Vec<Interest>)
+fn event_loop(mut epoll: EpollInstance,
+	      register: InterestList,
+	      modify: InterestList,
+	      remove: InterestList)
 {
-	// Insert new
-	for ref mut interest in regsister.iter_mut() {
-		epoll.add_interest(interest).unwrap();
-	}
+    loop {
+        // Insert new interests
+        {
+            let mut list = register.lock().unwrap();
+            for interest in list.drain(..) {
+                epoll.add_interest(interest).unwrap();
+            }
+        }
 
-	// Modify existing
-	for ref mut interest in modify.iter_mut() {
-		epoll.mod_interest(interest).unwrap();
-	}
+        // Modify existing interests
+        {
+            let list = modify.lock().unwrap();
+            for ref interest in list.iter() {
+                epoll.mod_interest(interest).unwrap();
+            }
+        }
 
-	// Remove stale
-	for ref mut interest in remove.iter_mut() {
-		epoll.del_interest(interest).unwrap();
-	}
+        // Remove existing interests
+        {
+            let list = remove.lock().unwrap();
+            for ref interest in list.iter() {
+                epoll.del_interest(interest).unwrap();
+            }
+        }
 
-	// Wait for new events
-	let indefinite: i32 = -1;
-	let max_returned: usize = 100;
-	let mut event_buf = epoll.wait(indefinite, max_returned).unwrap();
-
-	// Process stuff
-	for ref mut interest in event_buf {
-		handle_interest(interest);
-	}
+        // Wait for new events
+        let indefinite: i32 = -1;
+        let max_returned: usize = 100;
+        let event_buf = epoll.wait(indefinite, max_returned).unwrap();
+        handle_events(event_buf);
+    }
 }
 
-fn handle_interest(interest: &mut Interest) {
-	// Awesome stuff...
+fn handle_events(events: Vec<Interest>) {
+    // Awesome handling of events here...
 }
 ```
 
