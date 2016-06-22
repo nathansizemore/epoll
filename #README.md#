@@ -17,24 +17,24 @@ use epoll::*;
 
 fn main() {
 	// Magic area of new fds to add
-	let regsiter_buf: Vec<Interest>;
+	let mut regsiter_buf: Vec<Interest>;
 
 	// Magic area of Interests needing updated event flags and/or data
-	let modify_buf: Vec<Interest>;
+	let mut modify_buf: Vec<Interest>;
 
 	// Magic area of Interests needing removed.
-	let remove_buf: Vec<Interest>;
+	let mut remove_buf: Vec<Interest>;
 
 	// Out super awesome epoll instance.
 	let mut epoll = EpollInstance::new().unwrap();
 
 	loop {
-		event_loop();
+		event_loop(&mut epoll, &mregister_buf, &mut modify_buf, &mut remove_buf);
 	}
 }
 
-fn event_loop(epoll: &mut EpollInstance,
-	          register: &mut Vec<Interest>,
+fn event_loop(mut epoll: EpollInstance,
+	          mut register: Vec<Interest>,
 			  modify: &mut Vec<Interest>,
 			  remove: &mut Vec<Interest>)
 {

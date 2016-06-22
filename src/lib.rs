@@ -139,7 +139,7 @@ impl EpollInstance {
     /// ## Panics
     ///
     /// Panics if the interior Mutex has been poisoned.
-    pub fn mod_interest(&mut self, interest: &mut Interest) -> io::Result<()> {
+    pub fn mod_interest(&mut self, interest: &Interest) -> io::Result<()> {
         let mut event_mask = libc::epoll_event {
             events: interest.events().bits() as u32,
             u64: interest.data()
