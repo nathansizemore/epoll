@@ -81,7 +81,7 @@ bitflags! {
 }
 
 
-/// Thread safe abstraction around the returned `fd` from `libc::create(1)`
+/// Thread safe abstraction around the returned `fd` from `libc::epoll_create(1)`
 pub struct EpollInstance {
     fd: libc::c_int,
     interest_mutex: Mutex<Slab<Interest>>,
