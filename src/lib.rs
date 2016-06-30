@@ -11,7 +11,7 @@ extern crate simple_slab;
 #[macro_use] extern crate bitflags;
 
 
-use std::ops::Add;
+use std::ops::{Add, Drop};
 use std::sync::Mutex;
 use std::io::{self, Error};
 use std::os::unix::io::{RawFd, AsRawFd};
@@ -250,9 +250,14 @@ impl AsRawFd for EpollInstance {
     fn as_raw_fd(&self) -> RawFd { self.fd }
 }
 
+impl Drop for EpollInstance {
+    fn drop(&mut self) {
+        unsafe { libc::close(self.fd) };
+    }
+}
+
 unsafe impl Send for EpollInstance {}
 unsafe impl Sync for EpollInstance {}
-
 
 
 fn ctl(epfd: libc::c_int,
