@@ -11,6 +11,5 @@ documentation = "http://nathansizemore.github.io/epoll/epoll/index.html"
 
 [dependencies]
 libc = "^0.2"
-time = "^0.1"
 simple-slab = "^0.2"
 bitflags = "^0.7"
