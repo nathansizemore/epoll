@@ -6,17 +6,16 @@
 
 
 extern crate libc;
-extern crate time;
 extern crate simple_slab;
 #[macro_use] extern crate bitflags;
 
 
-use std::ops::{Add, Drop};
+use std::ops::Drop;
 use std::sync::Mutex;
 use std::io::{self, Error};
 use std::os::unix::io::{RawFd, AsRawFd};
+use std::time::{Duration, Instant};
 
-use time::{Duration, PreciseTime};
 use simple_slab::Slab;
 pub use interest::Interest;
 
@@ -108,7 +107,7 @@ impl EpollInstance {
             fd: epfd,
             interest_mutex: Mutex::new(Slab::<Interest>::new()),
             events: 0,
-            wait: Duration::zero()
+            wait: Duration::new(0, 0)
         })
     }
 
@@ -207,19 +206,17 @@ impl EpollInstance {
         let mut ret_buf = Vec::<Interest>::with_capacity(max_returned);
         let mut buf = Vec::<libc::epoll_event>::with_capacity(max_returned);
 
-        let (start, end) = unsafe {
-            let start = PreciseTime::now();
+        let start = Instant::now();
+        unsafe {
             let num_events = try!(cvt(libc::epoll_wait(self.fd,
                                                        buf.as_mut_ptr(),
                                                        max_returned as i32,
                                                        timeout))) as usize;
-            let end = PreciseTime::now();
             buf.set_len(num_events);
-            (start, end)
         };
 
         self.events += buf.len() as u64;
-        self.wait.add(start.to(end));
+        self.wait += start.elapsed();
 
         let mut list = self.interest_mutex.lock().unwrap();
         for ref event in buf.iter() {
@@ -241,8 +238,8 @@ impl EpollInstance {
     }
 
     /// Returns the total time spent in a blocked, waiting state.
-    pub fn wait_time(&self) -> std::time::Duration {
-        self.wait.to_std().unwrap()
+    pub fn wait_time(&self) -> Duration {
+        self.wait
     }
 }
 
