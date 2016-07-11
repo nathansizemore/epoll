@@ -24,8 +24,11 @@ mod interest;
 
 bitflags! {
     pub flags ControlOptions: i32 {
+        /// Indicates an addition to the interest list.
         const EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD,
+        /// Indicates a modification of flags for an interest already in list.
         const EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD,
+        /// Indicates a removal of an interest from the list.
         const EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL
     }
 }
@@ -80,7 +83,7 @@ bitflags! {
 }
 
 
-/// Thread safe abstraction around the returned `fd` from `libc::epoll_create(1)`
+/// Thread safe abstraction, plus timers, around an epoll RawFd.
 pub struct EpollInstance {
     fd: libc::c_int,
     interest_mutex: Mutex<Slab<Interest>>,
@@ -236,7 +239,7 @@ unsafe impl Send for EpollInstance {}
 unsafe impl Sync for EpollInstance {}
 
 
-/// Creates a new epoll file descriptor
+/// Creates a new epoll file descriptor.
 ///
 /// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
 ///
