@@ -23,7 +23,7 @@ mod interest;
 
 
 bitflags! {
-    flags ControlOptions: i32 {
+    pub flags ControlOptions: i32 {
         const EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD,
         const EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD,
         const EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL
@@ -95,16 +95,8 @@ impl EpollInstance {
     /// ## Notes
     /// * `FD_CLOEXEC` flag is set on the underlying fd returned.
     pub fn new() -> io::Result<EpollInstance> {
-        let epfd = unsafe {
-            let fd = try!(cvt(libc::epoll_create(1)));
-            let mut flags = try!(cvt(libc::fcntl(fd, libc::F_GETFD)));
-            flags |= libc::FD_CLOEXEC;
-            try!(cvt(libc::fcntl(fd, libc::F_SETFD, flags)));
-            fd
-        };
-
         Ok(EpollInstance {
-            fd: epfd,
+            fd: try!(create(true)),
             interest_mutex: Mutex::new(Slab::<Interest>::new()),
             events: 0,
             wait: Duration::new(0, 0)
@@ -121,8 +113,9 @@ impl EpollInstance {
             events: interest.events().bits() as u32,
             u64: interest.data()
         };
+
         try!(ctl(self.fd,
-                 EPOLL_CTL_ADD.bits(),
+                 EPOLL_CTL_ADD,
                  interest.as_raw_fd(),
                  &mut event_mask as *mut libc::epoll_event));
 
@@ -143,8 +136,9 @@ impl EpollInstance {
             events: interest.events().bits() as u32,
             u64: interest.data()
         };
+
         try!(ctl(self.fd,
-                 EPOLL_CTL_MOD.bits(),
+                 EPOLL_CTL_MOD,
                  interest.as_raw_fd(),
                  &mut event_mask as *mut libc::epoll_event));
 
@@ -172,8 +166,9 @@ impl EpollInstance {
             events: 0u32,
             u64: 0u64
         };
+
         try!(ctl(self.fd,
-                 EPOLL_CTL_DEL.bits(),
+                 EPOLL_CTL_DEL,
                  interest.as_raw_fd(),
                  &mut event_mask as *mut libc::epoll_event));
 
@@ -202,22 +197,12 @@ impl EpollInstance {
     ///
     /// Panics if the interior Mutex has been poisoned.
     pub fn wait(&mut self, timeout: i32, max_returned: usize) -> io::Result<Vec<Interest>> {
-        let timeout = if timeout < -1 { -1 } else { timeout };
-        let mut ret_buf = Vec::<Interest>::with_capacity(max_returned);
-        let mut buf = Vec::<libc::epoll_event>::with_capacity(max_returned);
-
         let start = Instant::now();
-        unsafe {
-            let num_events = try!(cvt(libc::epoll_wait(self.fd,
-                                                       buf.as_mut_ptr(),
-                                                       max_returned as i32,
-                                                       timeout))) as usize;
-            buf.set_len(num_events);
-        };
-
+        let buf = try!(wait(self.fd, timeout, max_returned));
         self.events += buf.len() as u64;
         self.wait += start.elapsed();
 
+        let mut ret_buf = Vec::<Interest>::with_capacity(buf.len());
         let mut list = self.interest_mutex.lock().unwrap();
         for ref event in buf.iter() {
             for ref mut interest in (*list).iter_mut() {
@@ -229,7 +214,7 @@ impl EpollInstance {
             }
         }
 
-        Ok((ret_buf))
+        Ok(ret_buf)
     }
 
     /// Returns the total number of events reported.
@@ -257,14 +242,62 @@ unsafe impl Send for EpollInstance {}
 unsafe impl Sync for EpollInstance {}
 
 
-fn ctl(epfd: libc::c_int,
-       op: libc::c_int,
-       fd: libc::c_int,
-       event: *mut libc::epoll_event)
-       -> io::Result<()>
+/// Creates a new epoll file descriptor
+///
+/// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
+///
+/// ## Notes
+///
+/// * `epoll_create(1)` is the underlying syscall.
+pub fn create(cloexec: bool) -> io::Result<RawFd> {
+    let epfd = unsafe {
+        let fd = try!(cvt(libc::epoll_create(1)));
+
+        if cloexec {
+            let mut flags = try!(cvt(libc::fcntl(fd, libc::F_GETFD)));
+            flags |= libc::FD_CLOEXEC;
+            try!(cvt(libc::fcntl(fd, libc::F_SETFD, flags)));
+        }
+        fd
+    };
+
+    Ok(epfd)
+}
+
+/// Calls the `epoll_ctl` syscall with the passed arguments.
+pub fn ctl(epfd: RawFd,
+           op: ControlOptions,
+           fd: RawFd,
+           event: *mut libc::epoll_event)
+           -> io::Result<()>
 {
-    unsafe { try!(cvt(libc::epoll_ctl(epfd, op, fd, event))) };
+    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, event))) };
     Ok(())
+}
+
+/// Calls the `epoll_wait` syscall with the passed arguments.
+///
+/// ## Notes
+///
+/// * If `timeout` is negative, it will block until an event is received.
+/// * `max_returned` must be greater than zero.
+pub fn wait(epfd: RawFd,
+            timeout: i32,
+            max_events: usize)
+            -> io::Result<Vec<libc::epoll_event>>
+{
+    let timeout = if timeout < -1 { -1 } else { timeout };
+    let mut buf = Vec::<libc::epoll_event>::with_capacity(max_events);
+
+    unsafe {
+        let num_events = try!(cvt(libc::epoll_wait(epfd,
+                                                   buf.as_mut_ptr(),
+                                                   max_events as i32,
+                                                   timeout))) as usize;
+        buf.set_len(num_events);
+    };
+
+    Ok(buf)
 }
 
 fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
