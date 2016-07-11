@@ -7,6 +7,8 @@
 
 use std::os::unix::io::{RawFd, AsRawFd};
 
+use libc;
+
 
 #[derive(Clone)]
 pub struct Interest {
@@ -60,5 +62,12 @@ impl Interest {
 impl AsRawFd for Interest {
     fn as_raw_fd(&self) -> RawFd {
         self.fd
+    }
+}
+
+pub fn int2event(interest: &Interest) -> libc::epoll_event {
+    libc::epoll_event {
+        events: interest.events().bits() as u32,
+        u64: interest.data()
     }
 }
