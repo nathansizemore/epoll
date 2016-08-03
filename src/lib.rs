@@ -194,8 +194,13 @@ impl EpollInstance {
     ///
     /// Panics if the interior Mutex has been poisoned.
     pub fn wait(&mut self, timeout: i32, max_returned: usize) -> io::Result<Vec<Interest>> {
+        let mut buf = Vec::<libc::epoll_event>::with_capacity(max_returned);
+        unsafe { buf.set_len(max_returned); }
+
         let start = Instant::now();
-        let buf = try!(wait(self.fd, timeout, max_returned));
+        let num_events = try!(wait(self.fd, timeout, &mut buf));
+        unsafe { buf.set_len(num_events) }
+
         self.events += buf.len() as u64;
         self.wait += start.elapsed();
 
@@ -277,24 +282,20 @@ pub fn ctl(epfd: RawFd,
 /// ## Notes
 ///
 /// * If `timeout` is negative, it will block until an event is received.
-/// * `max_returned` must be greater than zero.
 pub fn wait(epfd: RawFd,
             timeout: i32,
-            max_events: usize)
-            -> io::Result<Vec<libc::epoll_event>>
+            buf: &mut [libc::epoll_event])
+            -> io::Result<usize>
 {
     let timeout = if timeout < -1 { -1 } else { timeout };
-    let mut buf = Vec::<libc::epoll_event>::with_capacity(max_events);
-
-    unsafe {
-        let num_events = try!(cvt(libc::epoll_wait(epfd,
-                                                   buf.as_mut_ptr(),
-                                                   max_events as i32,
-                                                   timeout))) as usize;
-        buf.set_len(num_events);
+    let num_events = unsafe {
+        try!(cvt(libc::epoll_wait(epfd,
+                                  buf.as_mut_ptr(),
+                                  buf.len() as i32,
+                                  timeout))) as usize
     };
 
-    Ok(buf)
+    Ok(num_events)
 }
 
 fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
