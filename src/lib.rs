@@ -5,21 +5,12 @@
 // You can obtain one at http://mozilla.org/MPL/2.0/.
 
 
-extern crate libc;
-extern crate simple_slab;
 #[macro_use] extern crate bitflags;
+extern crate libc;
 
 
-use std::ops::Drop;
-use std::sync::Mutex;
 use std::io::{self, Error};
-use std::os::unix::io::{RawFd, AsRawFd};
-use std::time::{Duration, Instant};
-
-use simple_slab::Slab;
-pub use interest::Interest;
-
-mod interest;
+use std::os::unix::io::RawFd;
 
 
 bitflags! {
@@ -83,167 +74,6 @@ bitflags! {
 }
 
 
-/// Thread safe abstraction, plus timers, around an epoll RawFd.
-pub struct EpollInstance {
-    fd: libc::c_int,
-    interest_mutex: Mutex<Slab<Interest>>,
-    events: u64,
-    wait: Duration
-}
-
-impl EpollInstance {
-
-    /// Creates a new `EpollInstance`.
-    ///
-    /// ## Notes
-    /// * `FD_CLOEXEC` flag is set on the underlying fd returned.
-    pub fn new() -> io::Result<EpollInstance> {
-        Ok(EpollInstance {
-            fd: try!(create(true)),
-            interest_mutex: Mutex::new(Slab::<Interest>::new()),
-            events: 0,
-            wait: Duration::new(0, 0)
-        })
-    }
-
-    /// Register an initial `Interest` with this instance.
-    ///
-    /// ## Panics
-    ///
-    /// Panics if the interior Mutex has been poisoned.
-    pub fn add_interest(&mut self, interest: Interest) -> io::Result<()> {
-        let mut event_mask = interest::int2event(&interest);
-
-        try!(ctl(self.fd,
-                 EPOLL_CTL_ADD,
-                 interest.as_raw_fd(),
-                 &mut event_mask as *mut libc::epoll_event));
-
-        let mut list = self.interest_mutex.lock().unwrap();
-        (*list).insert(interest);
-
-        Ok(())
-    }
-
-    /// Modify the original `Interest`, identified by its `RawFd`, to the passed
-    /// interest's events and data fields.
-    ///
-    /// ## Panics
-    ///
-    /// Panics if the interior Mutex has been poisoned.
-    pub fn mod_interest(&mut self, interest: &Interest) -> io::Result<()> {
-        let mut event_mask = interest::int2event(interest);
-
-        try!(ctl(self.fd,
-                 EPOLL_CTL_MOD,
-                 interest.as_raw_fd(),
-                 &mut event_mask as *mut libc::epoll_event));
-
-        let mut list = self.interest_mutex.lock().unwrap();
-        for ref mut _interest in (*list).iter_mut() {
-            if _interest.as_raw_fd() == interest.as_raw_fd() {
-                _interest.set_events(interest.events());
-                _interest.set_data(interest.data());
-                break;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Remove the passed `Interest`, identified by its `RawFd`, from this instance.
-    ///
-    /// ## Panics
-    ///
-    /// Panics if the interior Mutex has been poisoned.
-    pub fn del_interest(&mut self, interest: &Interest) -> io::Result<()> {
-        // In kernel versions before 2.6.9, the EPOLL_CTL_DEL operation required a non-null
-        // pointer in event, even though this argument is ignored.
-        let mut event_mask = libc::epoll_event {
-            events: 0u32,
-            u64: 0u64
-        };
-
-        try!(ctl(self.fd,
-                 EPOLL_CTL_DEL,
-                 interest.as_raw_fd(),
-                 &mut event_mask as *mut libc::epoll_event));
-
-        let mut offset: usize = 0;
-        let mut list = self.interest_mutex.lock().unwrap();
-        for ref mut _interest in (*list).iter() {
-            if _interest.as_raw_fd() == interest.as_raw_fd() {
-                break;
-            }
-            offset += 1
-        }
-        (*list).remove(offset);
-
-        Ok(())
-    }
-
-    /// Waits for events on this instance for at most `timeout` milliseconds and returns at most
-    /// `max_returned` `Interests`.
-    ///
-    /// ## Notes
-    ///
-    /// * If `timeout` is negative, it will block until an event is received.
-    /// * `max_returned` must be greater than zero.
-    ///
-    /// ## Panics
-    ///
-    /// Panics if the interior Mutex has been poisoned.
-    pub fn wait(&mut self, timeout: i32, max_returned: usize) -> io::Result<Vec<Interest>> {
-        let mut buf = Vec::<libc::epoll_event>::with_capacity(max_returned);
-        unsafe { buf.set_len(max_returned); }
-
-        let start = Instant::now();
-        let num_events = try!(wait(self.fd, timeout, &mut buf));
-        unsafe { buf.set_len(num_events) }
-
-        self.events += buf.len() as u64;
-        self.wait += start.elapsed();
-
-        let mut ret_buf = Vec::<Interest>::with_capacity(buf.len());
-        let mut list = self.interest_mutex.lock().unwrap();
-        for ref event in buf.iter() {
-            for ref mut interest in (*list).iter_mut() {
-                if interest.data() == event.u64 {
-                    (*interest.events_mut()) = Events::from_bits(event.events).unwrap();
-                    ret_buf.push(interest.clone());
-                    break;
-                }
-            }
-        }
-
-        Ok(ret_buf)
-    }
-
-    /// Returns the total number of events reported.
-    pub fn events(&self) -> u64 {
-        self.events
-    }
-
-    /// Returns the total time spent in a blocked, waiting state.
-    pub fn wait_time(&self) -> Duration {
-        self.wait
-    }
-}
-
-impl AsRawFd for EpollInstance {
-    fn as_raw_fd(&self) -> RawFd { self.fd }
-}
-
-impl Drop for EpollInstance {
-    fn drop(&mut self) {
-        unsafe { libc::close(self.fd) };
-    }
-}
-
-unsafe impl Send for EpollInstance {}
-unsafe impl Sync for EpollInstance {}
-
-
 /// Creates a new epoll file descriptor.
 ///
 /// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
@@ -270,10 +100,10 @@ pub fn create(cloexec: bool) -> io::Result<RawFd> {
 pub fn ctl(epfd: RawFd,
            op: ControlOptions,
            fd: RawFd,
-           event: *mut libc::epoll_event)
+           event: &mut libc::epoll_event)
            -> io::Result<()>
 {
-    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, event))) };
+    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, event as *mut libc::epoll_event))) };
     Ok(())
 }
 
