@@ -1,8 +1,8 @@
 [package]
 name = "epoll"
-version = "0.6.0"
+version = "1.0.0"
 authors = ["Nathan Sizemore <nathanrsizemore@gmail.com>"]
-description = "Epoll interface"
+description = "Safe epoll interface."
 readme = "README.md"
 keywords = ["epoll"]
 license = "MPL-2.0"
