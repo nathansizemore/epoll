@@ -84,7 +84,6 @@ bitflags! {
 pub fn create(cloexec: bool) -> io::Result<RawFd> {
     let epfd = unsafe {
         let fd = try!(cvt(libc::epoll_create(1)));
-
         if cloexec {
             let mut flags = try!(cvt(libc::fcntl(fd, libc::F_GETFD)));
             flags |= libc::FD_CLOEXEC;
@@ -92,7 +91,6 @@ pub fn create(cloexec: bool) -> io::Result<RawFd> {
         }
         fd
     };
-
     Ok(epfd)
 }
 
@@ -124,7 +122,6 @@ pub fn wait(epfd: RawFd,
                                   buf.len() as i32,
                                   timeout))) as usize
     };
-
     Ok(num_events)
 }
 
