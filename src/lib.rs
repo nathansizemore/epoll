@@ -73,6 +73,20 @@ bitflags! {
     }
 }
 
+/// 'libc::epoll_event' equivalent.
+#[repr(C)]
+#[repr(packed)]
+#[derive(Clone, Copy)]
+pub struct Event {
+    events: u32,
+    data: u64
+}
+
+impl Event {
+    pub fn new(events: Events, data: u64) -> Event {
+        Event { events: events.bits(), data: data }
+    }
+}
 
 /// Creates a new epoll file descriptor.
 ///
@@ -94,31 +108,32 @@ pub fn create(cloexec: bool) -> io::Result<RawFd> {
     Ok(epfd)
 }
 
-/// Calls the `epoll_ctl` syscall with the passed arguments.
+/// Safe wrapper for `libc::epoll_ctl`
 pub fn ctl(epfd: RawFd,
            op: ControlOptions,
            fd: RawFd,
-           event: &mut libc::epoll_event)
+           mut event: Event)
            -> io::Result<()>
 {
-    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, event as *mut libc::epoll_event))) };
+    let e = &mut event as *mut _ as *mut libc::epoll_event;
+    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, e))) };
     Ok(())
 }
 
-/// Calls the `epoll_wait` syscall with the passed arguments.
+/// Safe wrapper for `libc::epoll_wait`
 ///
 /// ## Notes
 ///
 /// * If `timeout` is negative, it will block until an event is received.
 pub fn wait(epfd: RawFd,
             timeout: i32,
-            buf: &mut [libc::epoll_event])
+            buf: &mut [Event])
             -> io::Result<usize>
 {
     let timeout = if timeout < -1 { -1 } else { timeout };
     let num_events = unsafe {
         try!(cvt(libc::epoll_wait(epfd,
-                                  buf.as_mut_ptr(),
+                                  buf.as_mut_ptr() as *mut libc::epoll_event,
                                   buf.len() as i32,
                                   timeout))) as usize
     };
@@ -126,9 +141,5 @@ pub fn wait(epfd: RawFd,
 }
 
 fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
-    if result < 0 {
-        Err(Error::last_os_error())
-    } else {
-        Ok(result)
-    }
+    if result < 0 { Err(Error::last_os_error()) } else { Ok(result) }
 }
