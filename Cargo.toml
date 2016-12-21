@@ -1,13 +1,13 @@
 [package]
 name = "epoll"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Nathan Sizemore <nathanrsizemore@gmail.com>"]
 description = "Safe epoll interface."
 readme = "README.md"
 keywords = ["epoll"]
 license = "MPL-2.0"
 repository = "https://github.com/nathansizemore/epoll"
-documentation = "http://nathansizemore.github.io/epoll/epoll/index.html"
+documentation = "https://docs.rs/epoll/2.0.0/epoll/"
 
 [dependencies]
 libc = "^0.2"
