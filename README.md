@@ -16,5 +16,5 @@ epoll is available under the MPL-2.0 license. See the LICENSE file for more info
 
 
 [travis-badge]: https://travis-ci.org/nathansizemore/epoll
-[docs]: https://docs.rs/epoll/2.0.0/epoll/
+[docs]: https://docs.rs/epoll
 [epoll-man-page]: http://man7.org/linux/man-pages/man7/epoll.7.html
