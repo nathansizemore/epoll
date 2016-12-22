@@ -86,6 +86,14 @@ impl Event {
     pub fn new(events: Events, data: u64) -> Event {
         Event { events: events.bits(), data: data }
     }
+
+    pub fn events(&self) -> Events {
+        Events::from_bits(self.events).unwrap()
+    }
+
+    pub fn data(&self) -> u64 {
+        self.data
+    }
 }
 
 /// Creates a new epoll file descriptor.
