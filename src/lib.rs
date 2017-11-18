@@ -78,8 +78,8 @@ bitflags! {
 #[repr(packed)]
 #[derive(Clone, Copy)]
 pub struct Event {
-    events: u32,
-    data: u64
+    pub events: u32,
+    pub data: u64
 }
 
 impl Event {
