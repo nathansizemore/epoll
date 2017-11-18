@@ -14,28 +14,28 @@ use std::os::unix::io::RawFd;
 
 
 bitflags! {
-    pub flags ControlOptions: i32 {
+    pub struct ControlOptions: i32 {
         /// Indicates an addition to the interest list.
-        const EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD,
+        const EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD;
         /// Indicates a modification of flags for an interest already in list.
-        const EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD,
+        const EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD;
         /// Indicates a removal of an interest from the list.
-        const EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL
+        const EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL;
     }
 }
 
 bitflags! {
-    pub flags Events: u32 {
+    pub struct Events: u32 {
         /// Sets the Edge Triggered behavior for the associated file descriptor.
         ///
         /// The default behavior for epoll is Level Triggered.
-        const EPOLLET      = libc::EPOLLET as u32,
+        const EPOLLET      = libc::EPOLLET as u32;
         /// The associated file is available for read operations.
-        const EPOLLIN      = libc::EPOLLIN as u32,
+        const EPOLLIN      = libc::EPOLLIN as u32;
         /// Error condition happened on the associated file descriptor.
         ///
         /// `wait` will always wait for this event; is not necessary to set it in events.
-        const EPOLLERR     = libc::EPOLLERR as u32,
+        const EPOLLERR     = libc::EPOLLERR as u32;
         /// Hang up happened on the associated file descriptor.
         ///
         /// `wait` will always wait for this event; it is not necessary to set it in events.
@@ -43,16 +43,16 @@ bitflags! {
         /// merely indicates that the peer closed its end of the channel. Subsequent reads from
         /// the channel will return 0 (end of file) only after all outstanding data in the
         /// channel has been consumed.
-        const EPOLLHUP     = libc::EPOLLHUP as u32,
+        const EPOLLHUP     = libc::EPOLLHUP as u32;
         /// The associated file is available for write operations.
-        const EPOLLOUT     = libc::EPOLLOUT as u32,
+        const EPOLLOUT     = libc::EPOLLOUT as u32;
         /// There is urgent data available for read operations.
-        const EPOLLPRI     = libc::EPOLLPRI as u32,
+        const EPOLLPRI     = libc::EPOLLPRI as u32;
         /// Stream socket peer closed connection, or shut down writing half of connection.
         ///
         /// This flag is especially useful for writing simple code to detect peer shutdown when
         /// using Edge Triggered monitoring.
-        const EPOLLRDHUP   = libc::EPOLLRDHUP as u32,
+        const EPOLLRDHUP   = libc::EPOLLRDHUP as u32;
         /// If `EPOLLONESHOT` and `EPOLLET` are clear and the process has the `CAP_BLOCK_SUSPEND`
         /// capability, ensure that the system does not enter "suspend" or "hibernate" while this
         /// event is pending or being processed.
@@ -62,14 +62,14 @@ bitflags! {
         /// descriptor, the closure of that file descriptor, the removal of the event file
         /// descriptor with `EPOLL_CTL_DEL`, or the clearing of `EPOLLWAKEUP` for the event file
         /// descriptor with `EPOLL_CTL_MOD`.
-        const EPOLLWAKEUP  = libc::EPOLLWAKEUP as u32,
+        const EPOLLWAKEUP  = libc::EPOLLWAKEUP as u32;
         /// Sets the one-shot behavior for the associated file descriptor.
         ///
         /// This means that after an event is pulled out with `wait` the associated file
         /// descriptor is internally disabled and no other events will be reported by the epoll
         /// interface.  The user must call `ctl` with `EPOLL_CTL_MOD` to rearm the file
         /// descriptor with a new event mask.
-        const EPOLLONESHOT = libc::EPOLLONESHOT as u32
+        const EPOLLONESHOT = libc::EPOLLONESHOT as u32;
     }
 }
 
