@@ -96,7 +96,7 @@ impl Event {
 ///
 /// * `epoll_create1()` is the underlying syscall.
 pub fn create(cloexec: bool) -> io::Result<RawFd> {
-    let flags = if cloexec { libc::FD_CLOEXEC } else { 0 };
+    let flags = if cloexec { libc::EPOLL_CLOEXEC } else { 0 };
     unsafe { cvt(libc::epoll_create1(flags)) }
 }
 
