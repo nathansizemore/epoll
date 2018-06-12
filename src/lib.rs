@@ -13,15 +13,14 @@ use std::io::{self, Error};
 use std::os::unix::io::RawFd;
 
 
-bitflags! {
-    pub struct ControlOptions: i32 {
-        /// Indicates an addition to the interest list.
-        const EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD;
-        /// Indicates a modification of flags for an interest already in list.
-        const EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD;
-        /// Indicates a removal of an interest from the list.
-        const EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL;
-    }
+#[allow(non_camel_case_types)]
+pub enum ControlOptions {
+    /// Indicates an addition to the interest list.
+    EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD as isize,
+    /// Indicates a modification of flags for an interest already in list.
+    EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD as isize,
+    /// Indicates a removal of an interest from the list.
+    EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL as isize
 }
 
 bitflags! {
@@ -108,7 +107,7 @@ pub fn ctl(epfd: RawFd,
            -> io::Result<()>
 {
     let e = &mut event as *mut _ as *mut libc::epoll_event;
-    unsafe { try!(cvt(libc::epoll_ctl(epfd, op.bits, fd, e))) };
+    unsafe { try!(cvt(libc::epoll_ctl(epfd, op as i32, fd, e))) };
     Ok(())
 }
 
