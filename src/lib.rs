@@ -74,7 +74,7 @@ bitflags! {
 
 /// 'libc::epoll_event' equivalent.
 #[repr(C)]
-#[repr(packed)]
+#[cfg_attr(target_arch = "x86_64", repr(packed))]
 #[derive(Clone, Copy)]
 pub struct Event {
     pub events: u32,
