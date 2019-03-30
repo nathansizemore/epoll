@@ -131,6 +131,12 @@ pub fn wait(epfd: RawFd,
     Ok(num_events)
 }
 
+/// Safe wrapper for `libc::close`
+pub fn close(epfd: RawFd) -> io::Result<()> {
+    cvt(unsafe { libc::close(epfd) })?;
+    Ok(())
+}
+
 fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
     if result < 0 { Err(Error::last_os_error()) } else { Ok(result) }
 }
