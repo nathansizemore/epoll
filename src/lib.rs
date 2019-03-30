@@ -13,14 +13,15 @@ use std::io::{self, Error};
 use std::os::unix::io::RawFd;
 
 
+#[repr(i32)]
 #[allow(non_camel_case_types)]
 pub enum ControlOptions {
     /// Indicates an addition to the interest list.
-    EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD as isize,
+    EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD,
     /// Indicates a modification of flags for an interest already in list.
-    EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD as isize,
+    EPOLL_CTL_MOD = libc::EPOLL_CTL_MOD,
     /// Indicates a removal of an interest from the list.
-    EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL as isize
+    EPOLL_CTL_DEL = libc::EPOLL_CTL_DEL,
 }
 
 bitflags! {
