@@ -107,7 +107,7 @@ pub fn ctl(epfd: RawFd,
            -> io::Result<()>
 {
     let e = &mut event as *mut _ as *mut libc::epoll_event;
-    unsafe { try!(cvt(libc::epoll_ctl(epfd, op as i32, fd, e))) };
+    unsafe { cvt(libc::epoll_ctl(epfd, op as i32, fd, e))? };
     Ok(())
 }
 
@@ -123,10 +123,10 @@ pub fn wait(epfd: RawFd,
 {
     let timeout = if timeout < -1 { -1 } else { timeout };
     let num_events = unsafe {
-        try!(cvt(libc::epoll_wait(epfd,
+        cvt(libc::epoll_wait(epfd,
                                   buf.as_mut_ptr() as *mut libc::epoll_event,
                                   buf.len() as i32,
-                                  timeout))) as usize
+                                  timeout))? as usize
     };
     Ok(num_events)
 }
