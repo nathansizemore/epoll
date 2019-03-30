@@ -4,14 +4,12 @@
 // If a copy of the MPL was not distributed with this file,
 // You can obtain one at http://mozilla.org/MPL/2.0/.
 
-
-#[macro_use] extern crate bitflags;
+#[macro_use]
+extern crate bitflags;
 extern crate libc;
-
 
 use std::io::{self, Error};
 use std::os::unix::io::RawFd;
-
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -79,12 +77,15 @@ bitflags! {
 #[derive(Clone, Copy)]
 pub struct Event {
     pub events: u32,
-    pub data: u64
+    pub data: u64,
 }
 
 impl Event {
     pub fn new(events: Events, data: u64) -> Event {
-        Event { events: events.bits(), data: data }
+        Event {
+            events: events.bits(),
+            data: data,
+        }
     }
 }
 
@@ -101,12 +102,12 @@ pub fn create(cloexec: bool) -> io::Result<RawFd> {
 }
 
 /// Safe wrapper for `libc::epoll_ctl`
-pub fn ctl(epfd: RawFd,
-           op: ControlOptions,
-           fd: RawFd,
-           mut event: Event)
-           -> io::Result<()>
-{
+pub fn ctl(
+    epfd: RawFd,
+    op: ControlOptions,
+    fd: RawFd,
+    mut event: Event,
+) -> io::Result<()> {
     let e = &mut event as *mut _ as *mut libc::epoll_event;
     unsafe { cvt(libc::epoll_ctl(epfd, op as i32, fd, e))? };
     Ok(())
@@ -117,17 +118,15 @@ pub fn ctl(epfd: RawFd,
 /// ## Notes
 ///
 /// * If `timeout` is negative, it will block until an event is received.
-pub fn wait(epfd: RawFd,
-            timeout: i32,
-            buf: &mut [Event])
-            -> io::Result<usize>
-{
+pub fn wait(epfd: RawFd, timeout: i32, buf: &mut [Event]) -> io::Result<usize> {
     let timeout = if timeout < -1 { -1 } else { timeout };
     let num_events = unsafe {
-        cvt(libc::epoll_wait(epfd,
-                                  buf.as_mut_ptr() as *mut libc::epoll_event,
-                                  buf.len() as i32,
-                                  timeout))? as usize
+        cvt(libc::epoll_wait(
+            epfd,
+            buf.as_mut_ptr() as *mut libc::epoll_event,
+            buf.len() as i32,
+            timeout,
+        ))? as usize
     };
     Ok(num_events)
 }
@@ -139,5 +138,9 @@ pub fn close(epfd: RawFd) -> io::Result<()> {
 }
 
 fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
-    if result < 0 { Err(Error::last_os_error()) } else { Ok(result) }
+    if result < 0 {
+        Err(Error::last_os_error())
+    } else {
+        Ok(result)
+    }
 }
