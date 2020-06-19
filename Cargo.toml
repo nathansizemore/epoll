@@ -1,6 +1,6 @@
 [package]
 name = "epoll"
-version = "4.1.0"
+version = "4.2.0"
 authors = ["Nathan Sizemore <nathanrsizemore@gmail.com>"]
 description = "Safe epoll interface."
 readme = "README.md"
