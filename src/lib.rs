@@ -68,6 +68,35 @@ bitflags! {
         /// interface.  The user must call `ctl` with `EPOLL_CTL_MOD` to rearm the file
         /// descriptor with a new event mask.
         const EPOLLONESHOT = libc::EPOLLONESHOT as u32;
+        /// Sets an exclusive wakeup mode for the epoll file descriptor that is being attached to
+        /// the target file descriptor, `fd`. When a wakeup event occurs and multiple epoll file
+        /// descriptors are attached to the same target file using `EPOLLEXCLUSIVE`, one or more of
+        /// the epoll file descriptors will receive an event with `wait`. The default in this
+        /// scenario (when `EPOLLEXCLUSIVE` is not set) is for all epoll file descriptors to
+        /// receive an event. `EPOLLEXCLUSIVE` is thus useful for avoiding thundering herd problems
+        /// in certain scenarios.
+        ///
+        /// If the same file descriptor is in multiple epoll instances, some with the
+        /// `EPOLLEXCLUSIVE` flag, and others without, then events will be provided to all epoll
+        /// instances that did not specify `EPOLLEXCLUSIVE`, and at least one of the epoll
+        /// instances that did specify `EPOLLEXCLUSIVE`.
+        ///
+        /// The following values may be specified in conjunction with `EPOLLEXCLUSIVE`: `EPOLLIN`,
+        /// `EPOLLOUT`, `EPOLLWAKEUP`, and `EPOLLET`. `EPOLLHUP` and `EPOLLERR` can also be
+        /// specified, but this is not required: as usual, these events are always reported if they
+        /// occur, regardless of whether they are specified in `Events`. Attempts to specify other
+        /// values in `Events` yield the error `EINVAL`.
+        ///
+        /// `EPOLLEXCLUSIVE` may be used only in an `EPOLL_CTL_ADD` operation; attempts to employ
+        /// it with `EPOLL_CTL_MOD` yield an error. If `EPOLLEXCLUSIVE` has been set using `ctl`,
+        /// then a subsequent `EPOLL_CTL_MOD` on the same `epfd`, `fd` pair yields an error. A call
+        /// to `ctl` that specifies `EPOLLEXCLUSIVE` in `Events` and specifies the target file
+        /// descriptor `fd` as an epoll instance will likewise fail. The error in all of these
+        /// cases is `EINVAL`.
+        ///
+        /// The `EPOLLEXCLUSIVE` flag is an input flag for the `Event.events` field when calling
+        /// `ctl`; it is never returned by `wait`.
+        const EPOLLEXCLUSIVE = libc::EPOLLEXCLUSIVE as u32;
     }
 }
 
