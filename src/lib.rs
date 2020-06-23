@@ -8,6 +8,7 @@
 extern crate bitflags;
 extern crate libc;
 
+use std::fmt::{Formatter, Debug, Result};
 use std::io::{self, Error};
 use std::os::unix::io::RawFd;
 
@@ -115,6 +116,19 @@ impl Event {
             events: events.bits(),
             data: data,
         }
+    }
+}
+
+impl Debug for Event {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let data = self.data;
+        f.debug_struct("Event")
+            .field("events", unsafe {
+                //Unsafe since we'd like to show which bits were wrongly set
+                &Events::from_bits_unchecked(self.events)
+            })
+            .field("data", &data) 
+            .finish()
     }
 }
 
