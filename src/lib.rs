@@ -8,9 +8,154 @@
 extern crate bitflags;
 extern crate libc;
 
-use std::fmt::{Formatter, Debug, Result};
-use std::io::{self, Error};
-use std::os::unix::io::RawFd;
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    convert::TryInto,
+    fmt::{self, Debug, Formatter},
+    io::{self, ErrorKind},
+    marker::PhantomData,
+    mem::{size_of, MaybeUninit},
+    num::TryFromIntError,
+    os::unix::io::RawFd,
+    ptr::{null_mut, read_unaligned},
+};
+
+#[derive(Copy, Clone)]
+pub union RawData {
+    pub ptr: *mut libc::c_void,
+    pub fd: RawFd,
+    pub _u32: u32,
+    pub _u64: u64,
+}
+trait DataKind {}
+
+// TODO write a macro_delc! for Ptr Fd U32 and U64
+
+#[derive(Debug, Copy, Clone)]
+struct Ptr<T> {
+    phantom: PhantomData<*mut T>,
+}
+impl<T> DataKind for Ptr<T> {}
+
+#[derive(Debug, Copy, Clone)]
+struct Fd;
+impl DataKind for Fd {}
+
+#[derive(Debug, Copy, Clone)]
+struct U32;
+impl DataKind for U32 {}
+
+#[derive(Debug, Copy, Clone)]
+struct U64;
+impl DataKind for U64 {}
+
+/// Data is used to represent user data in EPoll
+/// You can only choice from 4 types Ptr<T>, Fd, U32, U64
+/// use the appropriate function to create them
+pub struct Data<T> {
+    raw: RawData,
+    data_kind: PhantomData<T>,
+}
+
+impl Data<Fd> {
+    pub fn new_fd(fd: RawFd) -> Self {
+        Self {
+            raw: RawData { fd },
+            data_kind: PhantomData,
+        }
+    }
+
+    pub fn fd(&self) -> RawFd {
+        unsafe { self.raw.fd }
+    }
+}
+
+impl Debug for Data<Fd> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Data<Fd>")
+            .field("raw", &self.fd())
+            .field("data_kind", &self.data_kind)
+            .finish()
+    }
+}
+
+impl<T> Data<Ptr<T>> {
+    pub fn new_ptr(t: T) -> Self
+    where
+        T: Into<Box<T>>,
+    {
+        let ptr = Box::into_raw(t.into()) as *mut _;
+        Self {
+            raw: RawData { ptr },
+            data_kind: PhantomData,
+        }
+    }
+
+    pub fn ptr(&self) -> &T {
+        unsafe { &*(self.raw.ptr as *const T) }
+    }
+
+    pub fn ptr_mut(&mut self) -> &mut T {
+        unsafe { &mut *(self.raw.ptr as *mut T) }
+    }
+
+    pub fn into_inner(self) -> Box<T> {
+        unsafe { Box::from_raw(self.raw.ptr as *mut T) }
+    }
+}
+
+impl<T: Debug> Debug for Data<Ptr<T>> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct(stringify!("Data<Ptr<", T, ">>"))
+            .field("raw", &self.ptr())
+            .field("data_kind", &self.data_kind)
+            .finish()
+    }
+}
+
+impl Data<U32> {
+    pub fn new_fd(_u32: u32) -> Self {
+        Self {
+            raw: RawData { _u32 },
+            data_kind: PhantomData,
+        }
+    }
+
+    pub fn _u32(&self) -> u32 {
+        unsafe { self.raw._u32 }
+    }
+}
+
+impl Debug for Data<U32> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Data<U32>")
+            .field("raw", &self._u32())
+            .field("data_kind", &self.data_kind)
+            .finish()
+    }
+}
+
+impl Data<U64> {
+    pub fn new_fd(_u64: u64) -> Self {
+        Self {
+            raw: RawData { _u64 },
+            data_kind: PhantomData,
+        }
+    }
+
+    pub fn _u64(&self) -> u64 {
+        unsafe { self.raw._u64 }
+    }
+}
+
+impl Debug for Data<U64> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Data<U64>")
+            .field("raw", &self._u64())
+            .field("data_kind", &self.data_kind)
+            .finish()
+    }
+}
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -103,87 +248,215 @@ bitflags! {
 
 /// 'libc::epoll_event' equivalent.
 #[repr(C)]
-#[cfg_attr(target_arch = "x86_64", repr(packed))]
-#[derive(Clone, Copy)]
-pub struct Event {
-    pub events: u32,
-    pub data: u64,
+#[cfg_attr(
+    any(
+        all(
+            target_arch = "x86",
+            not(target_env = "musl"),
+            not(target_os = "android")
+        ),
+        target_arch = "x86_64"
+    ),
+    repr(packed)
+)]
+pub struct Event<T> {
+    pub events: Events,
+    pub data: Data<T>,
 }
 
-impl Event {
-    pub fn new(events: Events, data: u64) -> Event {
-        Event {
-            events: events.bits(),
-            data: data,
+static_assertions::assert_eq_size!(Event<Data<Ptr<()>>>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<Data<Fd>>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<Data<U32>>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<Data<U64>>, libc::epoll_event);
+
+impl<T> Event<T> {
+    pub fn new(events: Events, data: Data<T>) -> Self {
+        Self {
+            events: events,
+            data,
         }
     }
 }
 
-impl Debug for Event {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let data = self.data;
-        f.debug_struct("Event")
-            .field("events", unsafe {
-                //Unsafe since we'd like to show which bits were wrongly set
-                &Events::from_bits_unchecked(self.events)
-            })
-            .field("data", &data) 
-            .finish()
+impl<T> Debug for Event<T>
+where
+    Data<T>: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        unsafe {
+            // https://github.com/rust-lang/rust/issues/46043
+
+            let this = self as *const _ as *const Events;
+            let events = &this.read_unaligned();
+            let this = this.offset(1) as *const Data<T>;
+            let data = &this.read_unaligned();
+
+            f.debug_struct("Event")
+                .field("events", events)
+                .field("data", data)
+                .finish()
+        }
     }
 }
 
-/// Creates a new epoll file descriptor.
+/// This represent an EPoll instance
+/// You will need to choice between 4 datas types
+/// RawFd, u32, u64, Ptr<T>
+/// This is enforced cause epoll doesn't allow to diffenciate
+/// the union its use internally to stock user data
+/// and anyway mix between data type don't make much sense
 ///
-/// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
+/// This will disallow any miss use about the union at compile time
 ///
-/// ## Notes
-///
-/// * `epoll_create1()` is the underlying syscall.
-pub fn create(cloexec: bool) -> io::Result<RawFd> {
-    let flags = if cloexec { libc::EPOLL_CLOEXEC } else { 0 };
-    unsafe { cvt(libc::epoll_create1(flags)) }
-}
-
-/// Safe wrapper for `libc::epoll_ctl`
-pub fn ctl(
-    epfd: RawFd,
-    op: ControlOptions,
+/// Notice that while this is safe this currently can't prevent leak
+/// You will need to handle this a little yourself by calling `into_inner()`
+/// when you use the Ptr<T> type
+pub struct EPoll<T> {
     fd: RawFd,
-    mut event: Event,
-) -> io::Result<()> {
-    let e = &mut event as *mut _ as *mut libc::epoll_event;
-    unsafe { cvt(libc::epoll_ctl(epfd, op as i32, fd, e))? };
-    Ok(())
+    datas: HashMap<RawFd, Event<T>>,
+    buffer: Vec<MaybeUninit<Event<T>>>,
 }
 
-/// Safe wrapper for `libc::epoll_wait`
-///
-/// ## Notes
-///
-/// * If `timeout` is negative, it will block until an event is received.
-pub fn wait(epfd: RawFd, timeout: i32, buf: &mut [Event]) -> io::Result<usize> {
-    let timeout = if timeout < -1 { -1 } else { timeout };
-    let num_events = unsafe {
-        cvt(libc::epoll_wait(
-            epfd,
-            buf.as_mut_ptr() as *mut libc::epoll_event,
-            buf.len() as i32,
-            timeout,
-        ))? as usize
-    };
-    Ok(num_events)
-}
+impl<T> EPoll<T> {
+    /// Creates a new epoll file descriptor.
+    ///
+    /// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
+    ///
+    /// ## Notes
+    ///
+    /// * `epoll_create1()` is the underlying syscall.
+    pub fn create(cloexec: bool, max_events: i32) -> io::Result<Self> {
+        let flags = if cloexec { libc::EPOLL_CLOEXEC } else { 0 };
+        let fd = Self::cvt(unsafe { libc::epoll_create1(flags) })?;
+        let max_events = max_events
+            .try_into()
+            .map_err(|e| io::Error::new(ErrorKind::InvalidInput, e))?;
 
-/// Safe wrapper for `libc::close`
-pub fn close(epfd: RawFd) -> io::Result<()> {
-    cvt(unsafe { libc::close(epfd) })?;
-    Ok(())
-}
+        Ok(Self {
+            fd,
+            datas: Default::default(),
+            buffer: Vec::with_capacity(max_events),
+        })
+    }
 
-fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
-    if result < 0 {
-        Err(Error::last_os_error())
-    } else {
-        Ok(result)
+    /// Safe wrapper to add an event for `libc::epoll_ctl`
+    pub fn ctl_add(&mut self, fd: RawFd, event: Event<T>) -> io::Result<()> {
+        match self.datas.entry(fd) {
+            Entry::Occupied(_) => Err(ErrorKind::AlreadyExists.into()),
+            Entry::Vacant(v) => {
+                let event = v.insert(event) as *mut _ as *mut libc::epoll_event;
+                let op = ControlOptions::EPOLL_CTL_ADD as i32;
+
+                Self::cvt(unsafe { libc::epoll_ctl(self.fd, op, fd, event) })?;
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Safe wrapper to modify an event for `libc::epoll_ctl`
+    /// return the old value
+    pub fn ctl_mod(
+        &mut self,
+        fd: RawFd,
+        mut event: Event<T>,
+    ) -> io::Result<Event<T>> {
+        match self.datas.entry(fd) {
+            Entry::Occupied(mut o) => {
+                let new = &mut event as *mut _ as *mut libc::epoll_event;
+                let op = ControlOptions::EPOLL_CTL_MOD as i32;
+
+                Self::cvt(unsafe { libc::epoll_ctl(self.fd, op, fd, new) })?;
+
+                Ok(o.insert(event))
+            }
+            Entry::Vacant(_) => Err(ErrorKind::NotFound.into()),
+        }
+    }
+
+    /// Safe wrapper to delete an event for `libc::epoll_ctl`
+    pub fn ctl_del(&mut self, fd: RawFd) -> io::Result<Event<T>> {
+        match self.datas.entry(fd) {
+            Entry::Occupied(o) => {
+                let event = null_mut() as *mut libc::epoll_event;
+                let op = ControlOptions::EPOLL_CTL_DEL as i32;
+
+                Self::cvt(unsafe { libc::epoll_ctl(self.fd, op, fd, event) })?;
+
+                Ok(o.remove())
+            }
+            Entry::Vacant(_) => Err(ErrorKind::NotFound.into()),
+        }
+    }
+
+    /// Safe wrapper for `libc::epoll_wait`
+    /// The timeout argument is in milliseconds
+    ///
+    /// ## Notes
+    ///
+    /// * If `timeout` is negative, it will block until an event is received.
+    pub fn wait(&mut self, timeout: i32) -> io::Result<&[Event<T>]> {
+        let timeout = if timeout < 0 { -1 } else { timeout };
+
+        let num_events = unsafe {
+            Self::cvt(libc::epoll_wait(
+                self.fd,
+                self.buffer.as_mut_ptr() as *mut libc::epoll_event,
+                self.buffer.capacity() as i32,
+                timeout,
+            ))? as usize
+        };
+
+        unsafe {
+            self.buffer.set_len(num_events);
+        }
+
+        // https://doc.rust-lang.org/std/mem/union.MaybeUninit.html#method.slice_assume_init_ref
+        Ok(unsafe {
+            &*(self.buffer.as_slice() as *const _ as *const [Event<T>])
+        })
+    }
+
+    /// This resize the buffer used to recieve event
+    /// as epoll use a i32 we also take an i32 and convert it to usize
+    /// this do at best
+    pub fn resize_buffer(
+        &mut self,
+        max_events: i32,
+    ) -> Result<(), TryFromIntError> {
+        let max_events = max_events.try_into()?;
+        self.buffer.resize_with(max_events, MaybeUninit::uninit);
+        self.buffer.shrink_to_fit();
+
+        Ok(())
+    }
+
+    /// Safe wrapper for `libc::close`
+    /// this will return the datas
+    /// For Event<Ptr<T>> only if you want to free ressource
+    /// you will need to call `Event<Ptr<T>>::into_inner()`
+    /// This could be improve if we could specialize Drop
+    /// https://github.com/rust-lang/rust/issues/46893
+    pub fn close(self) -> io::Result<HashMap<RawFd, Event<T>>> {
+        Self::cvt(unsafe { libc::close(self.fd) })?;
+
+        Ok(self.datas)
+    }
+
+    /// This return all data associed with this epoll fd
+    /// You CAN'T modify direclt Event<T> the only thing you can modify
+    /// is Event<Ptr<T>> because it's a reference
+    /// if you want modify the direct value of Event<T>
+    /// you will need to use `ctl_mod()`
+    pub fn get_data(&self) -> &HashMap<RawFd, Event<T>> {
+        &self.datas
+    }
+
+    fn cvt(result: libc::c_int) -> io::Result<libc::c_int> {
+        if result < 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(result)
+        }
     }
 }
