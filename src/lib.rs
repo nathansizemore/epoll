@@ -9,15 +9,15 @@ extern crate bitflags;
 extern crate libc;
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::{Entry, HashMap},
     convert::TryInto,
     fmt::{self, Debug, Formatter},
     io::{self, ErrorKind},
     marker::PhantomData,
-    mem::{size_of, MaybeUninit},
+    mem::MaybeUninit,
     num::TryFromIntError,
     os::unix::io::RawFd,
-    ptr::{null_mut, read_unaligned},
+    ptr::null_mut,
 };
 
 #[derive(Copy, Clone)]
@@ -76,6 +76,12 @@ impl Data<Fd> {
     }
 }
 
+impl Clone for Data<Fd> {
+    fn clone(&self) -> Self {
+        Self::new_fd(self.fd())
+    }
+}
+
 impl Debug for Data<Fd> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("Data<Fd>")
@@ -112,15 +118,21 @@ impl<T> Data<Ptr<T>> {
 
 impl<T: Debug> Debug for Data<Ptr<T>> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct(stringify!("Data<Ptr<", T, ">>"))
+        f.debug_struct("Data<Ptr<T>>")
             .field("raw", &self.ptr())
             .field("data_kind", &self.data_kind)
             .finish()
     }
 }
 
+impl<T: Clone> Clone for Data<Ptr<T>> {
+    fn clone(&self) -> Self {
+        Self::new_ptr(self.ptr().clone())
+    }
+}
+
 impl Data<U32> {
-    pub fn new_fd(_u32: u32) -> Self {
+    pub fn new_u32(_u32: u32) -> Self {
         Self {
             raw: RawData { _u32 },
             data_kind: PhantomData,
@@ -129,6 +141,12 @@ impl Data<U32> {
 
     pub fn _u32(&self) -> u32 {
         unsafe { self.raw._u32 }
+    }
+}
+
+impl Clone for Data<U32> {
+    fn clone(&self) -> Self {
+        Self::new_u32(self._u32())
     }
 }
 
@@ -142,7 +160,7 @@ impl Debug for Data<U32> {
 }
 
 impl Data<U64> {
-    pub fn new_fd(_u64: u64) -> Self {
+    pub fn new_u64(_u64: u64) -> Self {
         Self {
             raw: RawData { _u64 },
             data_kind: PhantomData,
@@ -151,6 +169,12 @@ impl Data<U64> {
 
     pub fn _u64(&self) -> u64 {
         unsafe { self.raw._u64 }
+    }
+}
+
+impl Clone for Data<U64> {
+    fn clone(&self) -> Self {
+        Self::new_u64(self._u64())
     }
 }
 
@@ -281,10 +305,7 @@ static_assertions::assert_eq_size!(
 
 impl<T: DataKind> Event<T> {
     pub fn new(events: Events, data: Data<T>) -> Self {
-        Self {
-            events,
-            data,
-        }
+        Self { events, data }
     }
 
     pub fn events(&self) -> Events {
@@ -303,6 +324,15 @@ impl<T: DataKind> Event<T> {
             Event<U64>,
         );
         unsafe { &self.data }
+    }
+}
+
+impl<T: DataKind> Clone for Event<T>
+where
+    Data<T>: Clone,
+{
+    fn clone(&self) -> Self {
+        Self::new(self.events, self.data().clone())
     }
 }
 
@@ -334,6 +364,18 @@ pub struct EPoll<T: DataKind> {
     fd: RawFd,
     datas: HashMap<RawFd, Event<T>>,
     buffer: Vec<MaybeUninit<Event<T>>>,
+}
+
+impl<T: DataKind> Debug for EPoll<T>
+where
+    Data<T>: Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EPoll")
+            .field("fd", &self.fd)
+            .field("datas", &self.datas)
+            .finish()
+    }
 }
 
 impl<T: DataKind> EPoll<T> {
