@@ -267,21 +267,42 @@ bitflags! {
     repr(packed)
 )]
 pub struct Event<T: DataKind> {
-    pub events: Events,
-    pub data: Data<T>,
+    events: Events,
+    data: Data<T>,
 }
 
-static_assertions::assert_eq_size!(Event<Ptr<()>>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<Fd>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<U32>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<U64>, libc::epoll_event);
+static_assertions::assert_eq_size!(
+    libc::epoll_event,
+    Event<Ptr<()>>,
+    Event<Fd>,
+    Event<U32>,
+    Event<U64>,
+);
 
 impl<T: DataKind> Event<T> {
     pub fn new(events: Events, data: Data<T>) -> Self {
         Self {
-            events: events,
+            events,
             data,
         }
+    }
+
+    pub fn events(&self) -> Events {
+        self.events
+    }
+
+    pub fn data(&self) -> &Data<T> {
+        // https://github.com/rust-lang/rust/issues/46043
+        // it's safe cause Event align is 1
+        static_assertions::assert_eq_align!(
+            u8,
+            libc::epoll_event,
+            Event<Ptr<()>>,
+            Event<Fd>,
+            Event<U32>,
+            Event<U64>,
+        );
+        unsafe { &self.data }
     }
 }
 
@@ -290,19 +311,10 @@ where
     Data<T>: Debug,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        unsafe {
-            // https://github.com/rust-lang/rust/issues/46043
-
-            let this = self as *const _ as *const Events;
-            let events = &this.read_unaligned();
-            let this = this.offset(1) as *const Data<T>;
-            let data = &this.read_unaligned();
-
-            f.debug_struct("Event")
-                .field("events", events)
-                .field("data", data)
-                .finish()
-        }
+        f.debug_struct("Event")
+            .field("events", &self.events())
+            .field("data", self.data())
+            .finish()
     }
 }
 
