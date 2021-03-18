@@ -21,38 +21,44 @@ use std::{
 };
 
 #[derive(Copy, Clone)]
-pub union RawData {
-    pub ptr: *mut libc::c_void,
-    pub fd: RawFd,
-    pub _u32: u32,
-    pub _u64: u64,
+union RawData {
+    ptr: *mut libc::c_void,
+    fd: RawFd,
+    _u32: u32,
+    _u64: u64,
 }
-trait DataKind {}
+
+/// Regroup DakaKind type
+pub trait DataKind {}
 
 // TODO write a macro_delc! for Ptr Fd U32 and U64
 
+/// This represent Ptr mode
 #[derive(Debug, Copy, Clone)]
-struct Ptr<T> {
+pub struct Ptr<T> {
     phantom: PhantomData<*mut T>,
 }
 impl<T> DataKind for Ptr<T> {}
 
+/// This represent Fd mode
 #[derive(Debug, Copy, Clone)]
-struct Fd;
+pub struct Fd;
 impl DataKind for Fd {}
 
+/// This represent U32 mode
 #[derive(Debug, Copy, Clone)]
-struct U32;
+pub struct U32;
 impl DataKind for U32 {}
 
+/// This represent U64 mode
 #[derive(Debug, Copy, Clone)]
-struct U64;
+pub struct U64;
 impl DataKind for U64 {}
 
 /// Data is used to represent user data in EPoll
 /// You can only choice from 4 types Ptr<T>, Fd, U32, U64
 /// use the appropriate function to create them
-pub struct Data<T> {
+pub struct Data<T: DataKind> {
     raw: RawData,
     data_kind: PhantomData<T>,
 }
@@ -159,7 +165,7 @@ impl Debug for Data<U64> {
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
-pub enum ControlOptions {
+enum ControlOptions {
     /// Indicates an addition to the interest list.
     EPOLL_CTL_ADD = libc::EPOLL_CTL_ADD,
     /// Indicates a modification of flags for an interest already in list.
@@ -169,6 +175,7 @@ pub enum ControlOptions {
 }
 
 bitflags! {
+    /// BitFlags that allow to configure events to listen from a file descriptor
     pub struct Events: u32 {
         /// Sets the Edge Triggered behavior for the associated file descriptor.
         ///
@@ -259,17 +266,17 @@ bitflags! {
     ),
     repr(packed)
 )]
-pub struct Event<T> {
+pub struct Event<T: DataKind> {
     pub events: Events,
     pub data: Data<T>,
 }
 
-static_assertions::assert_eq_size!(Event<Data<Ptr<()>>>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<Data<Fd>>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<Data<U32>>, libc::epoll_event);
-static_assertions::assert_eq_size!(Event<Data<U64>>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<Ptr<()>>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<Fd>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<U32>, libc::epoll_event);
+static_assertions::assert_eq_size!(Event<U64>, libc::epoll_event);
 
-impl<T> Event<T> {
+impl<T: DataKind> Event<T> {
     pub fn new(events: Events, data: Data<T>) -> Self {
         Self {
             events: events,
@@ -278,7 +285,7 @@ impl<T> Event<T> {
     }
 }
 
-impl<T> Debug for Event<T>
+impl<T: DataKind> Debug for Event<T>
 where
     Data<T>: Debug,
 {
@@ -311,13 +318,13 @@ where
 /// Notice that while this is safe this currently can't prevent leak
 /// You will need to handle this a little yourself by calling `into_inner()`
 /// when you use the Ptr<T> type
-pub struct EPoll<T> {
+pub struct EPoll<T: DataKind> {
     fd: RawFd,
     datas: HashMap<RawFd, Event<T>>,
     buffer: Vec<MaybeUninit<Event<T>>>,
 }
 
-impl<T> EPoll<T> {
+impl<T: DataKind> EPoll<T> {
     /// Creates a new epoll file descriptor.
     ///
     /// If `cloexec` is true, `FD_CLOEXEC` will be set on the returned file descriptor.
@@ -460,3 +467,6 @@ impl<T> EPoll<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {}
