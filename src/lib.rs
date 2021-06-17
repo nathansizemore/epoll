@@ -167,7 +167,7 @@ pub fn wait(epfd: RawFd, timeout: i32, buf: &mut [Event]) -> io::Result<usize> {
         cvt(libc::epoll_wait(
             epfd,
             buf.as_mut_ptr() as *mut libc::epoll_event,
-            buf.len() as i32,
+            buf.capacity() as i32,
             timeout,
         ))? as usize
     };
