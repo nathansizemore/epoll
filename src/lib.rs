@@ -24,6 +24,7 @@ pub enum ControlOptions {
 }
 
 bitflags! {
+    #[derive(Debug)]
     pub struct Events: u32 {
         /// Sets the Edge Triggered behavior for the associated file descriptor.
         ///
@@ -123,10 +124,7 @@ impl Debug for Event {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let data = self.data;
         f.debug_struct("Event")
-            .field("events", unsafe {
-                //Unsafe since we'd like to show which bits were wrongly set
-                &Events::from_bits_unchecked(self.events)
-            })
+            .field("events", &Events::from_bits_retain(self.events)) // Retain so we can see erroneously set bits too
             .field("data", &data) 
             .finish()
     }
