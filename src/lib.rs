@@ -8,7 +8,7 @@
 extern crate bitflags;
 extern crate libc;
 
-use std::fmt::{Formatter, Debug, Result};
+use std::fmt::{Debug, Formatter, Result};
 use std::io::{self, Error};
 use std::os::unix::io::RawFd;
 
@@ -24,7 +24,8 @@ pub enum ControlOptions {
 }
 
 bitflags! {
-    #[derive(Debug)]
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     pub struct Events: u32 {
         /// Sets the Edge Triggered behavior for the associated file descriptor.
         ///
@@ -125,7 +126,7 @@ impl Debug for Event {
         let data = self.data;
         f.debug_struct("Event")
             .field("events", &Events::from_bits_retain(self.events)) // Retain so we can see erroneously set bits too
-            .field("data", &data) 
+            .field("data", &data)
             .finish()
     }
 }
